@@ -1,0 +1,17 @@
+{
+  "name": "chat-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"node server.js\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix client run build",
+    "preview": "npm --prefix client run preview",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.4",
+    "socket.io": "^4.8.3"
+  }
+}
