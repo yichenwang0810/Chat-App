@@ -12,6 +12,7 @@ function App() {
   const [username, setUsername] = useState('');
   const [color, setColor] = useState(avatarColors[0]);
   const [joined, setJoined] = useState(false);
+  const [userId, setUserId] = useState(null);
   const [message, setMessage] = useState('');
   const [snapMode, setSnapMode] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -22,19 +23,27 @@ function App() {
   const inputRef = useRef(null);
 
   useEffect(() => {
+    socket.on('connect', () => setUserId(socket.id));
     socket.on('user-list', setUsers);
     socket.on('typing-users', setTypingUsers);
+    socket.on('message-history', (history) => setMessages(history));
     socket.on('new-message', (message) => {
       setMessages((prev) => [...prev, message]);
+    });
+    socket.on('message-updated', (updatedMessage) => {
+      setMessages((prev) => prev.map((message) => (message.id === updatedMessage.id ? updatedMessage : message)));
     });
     socket.on('delete-message', (id) => {
       setMessages((prev) => prev.filter((message) => message.id !== id));
     });
 
     return () => {
+      socket.off('connect');
       socket.off('user-list');
       socket.off('typing-users');
+      socket.off('message-history');
       socket.off('new-message');
+      socket.off('message-updated');
       socket.off('delete-message');
     };
   }, []);
@@ -81,6 +90,14 @@ function App() {
   const handleTyping = (value) => {
     setMessage(value);
     socket.emit('typing', value.trim().length > 0);
+  };
+
+  const handleLike = (messageId) => {
+    socket.emit('like-message', messageId);
+  };
+
+  const handleDelete = (messageId) => {
+    socket.emit('request-delete-message', messageId);
   };
 
   const joinChat = () => {
@@ -140,20 +157,46 @@ function App() {
         ) : (
           <>
             <div className="message-list">
-              {messages.map((message) => (
-                <div key={message.id} className="message-card">
-                  <div className="message-meta">
-                    <span className="message-avatar" style={{ background: message.author.color }} />
-                    <div>
-                      <strong>{message.author.username}</strong>
-                      <span>{formatTime(message.createdAt)}</span>
+              {messages.map((message) => {
+                const isSystem = message.author?.id === 'system';
+                const canDelete = message.author?.id === userId && !message.snap;
+                const liked = message.likedBy?.includes(username);
+
+                return (
+                  <div key={message.id} className={`message-card ${isSystem ? 'system' : ''}`}>
+                    <div className="message-meta">
+                      <span className="message-avatar" style={{ background: message.author.color }} />
+                      <div>
+                        <strong>{message.author.username}</strong>
+                        <span>{formatTime(message.createdAt)}</span>
+                      </div>
+                      {message.snap && <span className="snap-badge">Snap</span>}
                     </div>
-                    {message.snap && <span className="snap-badge">Snap</span>}
+                    {message.text && <p>{message.text}</p>}
+                    {message.image && <img src={message.image} alt="shared" />}
+                    {!isSystem && (
+                      <div className="message-actions">
+                        <button
+                          type="button"
+                          className={`action-button ${liked ? 'liked' : ''}`}
+                          onClick={() => handleLike(message.id)}
+                        >
+                          {liked ? 'Unlike' : 'Like'} {message.likeCount ? `(${message.likeCount})` : ''}
+                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="action-button delete"
+                            onClick={() => handleDelete(message.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {message.text && <p>{message.text}</p>}
-                  {message.image && <img src={message.image} alt="shared" />}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <form className="composer" onSubmit={sendMessage}>

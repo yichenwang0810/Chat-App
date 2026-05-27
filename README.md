@@ -8,6 +8,8 @@ A lightweight chat app inspired by WhatsApp and Snapchat.
 - user presence list and typing indicator
 - image sharing inside chat
 - "snap" mode messages that disappear after 30 seconds
+- message history for new users and live join/leave system notifications
+- message likes and author-only message deletion
 - single-page React frontend with Vite
 
 ## Run locally
