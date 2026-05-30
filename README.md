@@ -10,6 +10,9 @@ A lightweight chat app inspired by WhatsApp and Snapchat.
 - "snap" mode messages that disappear after 30 seconds
 - message history for new users and live join/leave system notifications
 - message likes and author-only message deletion
+- remembered username and avatar color in the browser
+- auto-scroll to new messages and Enter-to-send support
+- attachment preview and connection state display
 - single-page React frontend with Vite
 
 ## Run locally

@@ -16,19 +16,42 @@ function App() {
   const [message, setMessage] = useState('');
   const [snapMode, setSnapMode] = useState(false);
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [messages, setMessages] = useState([]);
   const [users, setUsers] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
   const [status, setStatus] = useState('Welcome to SnapChat-WhatsApp chat!');
+  const [connectionState, setConnectionState] = useState('connecting');
   const inputRef = useRef(null);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
-    socket.on('connect', () => setUserId(socket.id));
+    const savedUsername = localStorage.getItem('chat-app-username');
+    const savedColor = localStorage.getItem('chat-app-color');
+    if (savedUsername) setUsername(savedUsername);
+    if (savedColor && avatarColors.includes(savedColor)) setColor(savedColor);
+  }, []);
+
+  useEffect(() => {
+    socket.on('connect', () => {
+      setUserId(socket.id);
+      setConnectionState('connected');
+      setStatus('Connected');
+    });
+    socket.on('disconnect', () => {
+      setConnectionState('disconnected');
+      setStatus('Disconnected from server');
+    });
+    socket.on('reconnect_attempt', () => {
+      setConnectionState('reconnecting');
+      setStatus('Reconnecting...');
+    });
     socket.on('user-list', setUsers);
     socket.on('typing-users', setTypingUsers);
     socket.on('message-history', (history) => setMessages(history));
     socket.on('new-message', (message) => {
       setMessages((prev) => [...prev, message]);
+      setStatus('New message received');
     });
     socket.on('message-updated', (updatedMessage) => {
       setMessages((prev) => prev.map((message) => (message.id === updatedMessage.id ? updatedMessage : message)));
@@ -39,6 +62,8 @@ function App() {
 
     return () => {
       socket.off('connect');
+      socket.off('disconnect');
+      socket.off('reconnect_attempt');
       socket.off('user-list');
       socket.off('typing-users');
       socket.off('message-history');
@@ -53,6 +78,18 @@ function App() {
       socket.emit('typing', false);
     }
   }, [joined]);
+
+  useEffect(() => {
+    const previewUrl = imageFile ? URL.createObjectURL(imageFile) : null;
+    setImagePreview(previewUrl);
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [imageFile]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const typingNotice = useMemo(() => {
     const others = typingUsers.filter((name) => name !== username);
@@ -87,9 +124,24 @@ function App() {
     socket.emit('typing', false);
   };
 
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sendMessage();
+    }
+  };
+
   const handleTyping = (value) => {
     setMessage(value);
     socket.emit('typing', value.trim().length > 0);
+  };
+
+  const handleImageChange = (file) => {
+    setImageFile(file);
+  };
+
+  const clearAttachment = () => {
+    setImageFile(null);
   };
 
   const handleLike = (messageId) => {
@@ -102,6 +154,8 @@ function App() {
 
   const joinChat = () => {
     if (!username.trim()) return;
+    localStorage.setItem('chat-app-username', username.trim());
+    localStorage.setItem('chat-app-color', color);
     setJoined(true);
     socket.emit('join', { username: username.trim(), color });
     setStatus(`Joined as ${username.trim()}`);
@@ -125,6 +179,9 @@ function App() {
         <div className="panel status-panel">
           <h3>Status</h3>
           <p>{status}</p>
+          <p className="connection-state">Connection: {connectionState}</p>
+          <p>Users online: {users.length}</p>
+          <p>Messages: {messages.length}</p>
           {typingNotice && <p className="typing">{typingNotice}</p>}
         </div>
       </aside>
@@ -197,6 +254,7 @@ function App() {
                   </div>
                 );
               })}
+              <div ref={scrollRef} />
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
@@ -206,6 +264,7 @@ function App() {
                   placeholder="Type a message or select an image…"
                   value={message}
                   onChange={(e) => handleTyping(e.target.value)}
+                  onKeyDown={handleKeyDown}
                 />
               </div>
               <div className="composer-row actions-row">
@@ -213,7 +272,7 @@ function App() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
                   />
                   {imageFile ? 'Image selected' : 'Attach image'}
                 </label>
@@ -226,6 +285,14 @@ function App() {
                   disappear in 30s
                 </label>
               </div>
+              {imagePreview && (
+                <div className="image-preview">
+                  <img src={imagePreview} alt="attachment preview" />
+                  <button type="button" className="secondary" onClick={clearAttachment}>
+                    Remove attachment
+                  </button>
+                </div>
+              )}
               <button type="submit" className="primary">
                 Send
               </button>
