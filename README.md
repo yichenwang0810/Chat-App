@@ -27,3 +27,14 @@ A lightweight chat app inspired by WhatsApp and Snapchat.
    npm run dev
    ```
 3. open the client at `http://localhost:5173`
+
+## Backend API
+
+The server now exposes a REST API alongside Socket.IO:
+
+- `GET /api/health` — check server health
+- `GET /api/users` — list online users
+- `GET /api/messages` — fetch stored message history
+- `POST /api/messages` — send a message via HTTP
+- `POST /api/messages/:id/like` — toggle like for a message
+- `DELETE /api/messages/:id` — delete a message by its author
