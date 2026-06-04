@@ -28,6 +28,12 @@ A lightweight chat app inspired by WhatsApp and Snapchat.
    ```
 3. open the client at `http://localhost:5173`
 
+### Production
+
+- build the frontend once with `npm run build`
+- start the server from the repository root with `npm start`
+- optionally set a different port: `PORT=4000 npm start`
+
 ## Backend API
 
 The server now exposes a REST API alongside Socket.IO:

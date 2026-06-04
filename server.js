@@ -39,10 +39,25 @@ function loadMessages() {
   if (!fs.existsSync(messageStorePath)) return;
   try {
     const stored = JSON.parse(fs.readFileSync(messageStorePath, 'utf8'));
-    if (Array.isArray(stored)) {
-      stored.forEach((message) => messages.push(message));
-      const maxId = messages.reduce((max, message) => Math.max(max, message.id || 0), 0);
-      messageId = maxId + 1;
+    if (!Array.isArray(stored)) return;
+
+    const now = Date.now();
+    const validMessages = stored.filter((message) => {
+      if (!message?.snap || !message.disappearAt) return true;
+      return message.disappearAt > now;
+    });
+
+    messages.push(...validMessages);
+    const maxId = messages.reduce((max, message) => Math.max(max, message.id || 0), 0);
+    messageId = maxId + 1;
+
+    if (messages.length > MESSAGE_LIMIT) {
+      messages.splice(0, messages.length - MESSAGE_LIMIT);
+    }
+
+    messages.forEach((message) => scheduleExpiry(message));
+    if (messages.length !== stored.length) {
+      saveMessages();
     }
   } catch (error) {
     console.error('Failed to load stored messages:', error);
